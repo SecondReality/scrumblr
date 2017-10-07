@@ -28,7 +28,7 @@ body
 							a#go(onclick="return go();") &nbsp;go.
 						<br><br>
 						p.home example board:
-						p.home!= '<a href="http://' + locals.url + '/demo">' + locals.url + '/demo</a>'
+						p.home!=.Url
 						<br><br><br>
 						p.home.small sourcecode at <a href="https://github.com/aliasaria/scrumblr">github</a>
 
@@ -48,11 +48,8 @@ body
 		div.sticker#sticker-silverstar
 		div.sticker#sticker-redstar
 
+	div.active-connections=.Connected
 
-	//display # of active users here
-	div.active-connections= "connections: " + connected
-
-	//<div style="width: 980px; height: 450px; border: solid 2px; opacity:.1; margin-top: 100px"> this will be the backlog that only appears on drag or perhaps not at all</div>
 
 	<script type="text/javascript">function go() {var value = document.forms[0].elements["name"].value; value = escape(value); window.location.href = value; return false;}</script>
 
