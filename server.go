@@ -11,6 +11,7 @@ import (
     "io"
     "github.com/graarh/golang-socketio"
     "github.com/graarh/golang-socketio/transport"
+    "lib/rooms"
 )
 
 var chttp = http.NewServeMux()
@@ -20,22 +21,36 @@ func echoHandler(ws *websocket.Conn) {
 	io.Copy(ws, ws)
 }
 
+type Message struct {
+  Action string `json:"action"`
+  Data string `json:"data"`
+}
+
 type Channel struct {
 	Channel string `json:"channel"`
 }
 
-/*
-func joinRoom(client, room, successFunction)
-{
-  /*
-	var msg = {};
-	msg.action = 'join-announce';
-	msg.data		= { sid: client.id, user_name: client.user_name };
+type successFunction func()
 
-	rooms.add_to_room_and_announce(client, room, msg);
-	successFunction();
-}
+func joinRoom(/*client,*/ room string, fn successFunction) {
+  msg := map[string]interface{}{
+      "action": "join-announce",
+      "data": map[string]interface{}{
+          "sid": "1",
+          "user_name": "little bobby tables",
+      },
+  }
+
+/*
+  msg := &Message{
+          Action:   "join-announce",
+          Data: []string{"apple", "peach", "pear"}}
+	msg.action = '';
+	msg.data		= { sid: client.id, user_name: client.user_name };
 */
+	//rooms.add_to_room_and_announce(client, room, msg);
+	fn();
+}
 
 func main() {
   server = gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
@@ -46,11 +61,6 @@ func main() {
   server.On(gosocketio.OnConnection, func(c *gosocketio.Channel) {
   		log.Println("New client connected")
   	})
-
-  	type Message struct {
-  		Action string `json:"action"`
-  		Data string `json:"data"`
-  	}
 
     server.On("joinRoom", func(c *gosocketio.Channel, channel string) string {
 
