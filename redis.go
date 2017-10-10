@@ -26,23 +26,17 @@ func NewDB() *DB {
     return tempdb
 }
 
-/*
-getAllCards: function(room, callback) {
-    redisClient.hgetall(REDIS_PREFIX + '-room:' + room + '-cards', function (err, res) {
+// TODO: Make these functions have callbacks.
+// Make an interface so there can be different implementations of the DB
+// Make generic JSON conversion functions that are easier to use.
+func (mydb * DB)SetTheme(room string, theme string){
+    mydb.redisClient.Set(redis_prefix+ "-room:" + room + "-theme", theme)
+}
 
-        var cards = [];
-
-        for (var i in res) {
-            cards.push( JSON.parse(res[i]) );
-        }
-        //console.dir(cards);
-
-        callback(cards);
-    });
-},
-*/
-
-// HKEYS and HGET?
+func (mydb * DB)GetTheme(room string) string {
+    theme, _ := mydb.redisClient.Get(redis_prefix+ "-room:" + room + "-theme")
+    return theme
+}
 
 func (mydb * DB)CreateColumn(room string, name string){
     mydb.redisClient.Push(redis_prefix+ "-room:" + room + "-columns", name)
@@ -80,14 +74,26 @@ func (mydb * DB)CreateCard(room string, id string, card interface{}){
     }
 }
 
-/*
-createCard: function(room, id, card) {
-    var cardString = JSON.stringify(card);
-    redisClient.hset(
-        REDIS_PREFIX + '-room:' + room + '-cards',
-        id,
-        cardString
-    );
-},
-*/
+func (mydb * DB)SetBoardSize(room string, size interface{}){
+	if jsonBytes, err := json.Marshal(size); err!=nil {
+			log.Println("Error converting JSON")
+	} else {
+			jsonString := string(jsonBytes[:])
+			mydb.redisClient.Set(redis_prefix+ "-room:" + room + "-size", jsonString)
+	}
+}
 
+func (mydb * DB)GetBoardSize(room string) map[string]interface{} {
+    sizeJson, err := mydb.redisClient.Get(redis_prefix+ "-room:" + room + "-size")
+
+		if err!=nil {
+			return nil
+		}
+
+		var size map[string]interface{}
+		if err := json.Unmarshal([]byte(sizeJson), &size); err != nil {
+		panic(err)
+		}
+
+    return size
+}

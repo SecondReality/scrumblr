@@ -106,14 +106,22 @@ func main() {
   	server.On("message", func(c *gosocketio.Channel, msg Message) string {
 
       log.Println(msg.Action)
+      if(msg.Action==""){
+        return "OK"
+      }
 
       switch(msg.Action) {
-        case "joinRoom":
+        case "joinRoom": {
           log.Println("Client Joined Room")
           joinRoom(c, msg.Data, func(){})
           c.Emit("message", map[string]interface{}{ "action": "roomAccept", "data": "" } );
-      case "initializeMe":
+        }
+        case "initializeMe": {
           InitClient(c)
+        }
+      case "moveCard": {
+        
+        }
       }
 
       /*
@@ -125,6 +133,30 @@ func main() {
   		return "OK"
   	})
 
+/*
+message_out = {
+  action: message.action,
+  data: {
+    id: scrub(message.data.id),
+    position: {
+      left: scrub(message.data.position.left),
+      top: scrub(message.data.position.top)
+    }
+  }
+};
+
+
+broadcastToRoom( client, message_out );
+
+// console.log("-----" + message.data.id);
+// console.log(JSON.stringify(message.data));
+
+getRoom(client, function(room) {
+  db.cardSetXY( room , message.data.id, message.data.position.left, message.data.position.top);
+});
+
+break;
+*/
     server.On(gosocketio.OnDisconnection, func(c *gosocketio.Channel) {
     		log.Println("Disconnected")
     	})
@@ -140,8 +172,33 @@ func InitClient(c *gosocketio.Channel){
 
         clientJsonSend(c, "initCards", db.GetAllCards(room))
         clientJsonSend(c, "initColumns", db.GetAllColumns(room))
+        theme := db.GetTheme(room)
+        // TODO: Verify if theme can be empty
+        if theme=="" {
+          theme = "bigcards"
+        }
+        clientJsonSend(c, "changeTheme", theme)
 
-        log.Println("got room")
+        // TODO: Verify if size can actually be nil
+        if size := db.GetBoardSize(room); size!=nil {
+          clientJsonSend(c, "setBoardSize", size)
+        }
+
+        roomMatesClients := RoomClients(room)
+        var roomMates = make([]map[string]interface{}, 0, 0)
+        for _, roomMateClient := range roomMatesClients {
+          if(roomMateClient.Id() != c.Id()){
+            newRoomMate := map[string]interface{}{
+                "sid": roomMateClient.Id(),
+                // This line is sketchy
+                "user_name": userNames[roomMateClient],
+              }
+            roomMates = append(roomMates, newRoomMate)
+          }
+        }
+
+        clientJsonSend(c, "initialUsers", roomMates)
+
         }
     getRoom(c, onGetRoom)
 }

@@ -8,7 +8,8 @@ package main
 // Note: I'm fairly certain there's a huge bug in this code. userName variable is never set to anything, it's always undefined in the original Javascript.
 
 // Dict mapping room names with people to sets of client objects.
-var rooms = make(map[string]mapset.Set)
+// TODO: Is there no way to make a strongly typed map?
+var rooms = make(map[string]mapset.Set) // Maps of *gosocketio.Channel
 //mapset.NewSet()
 //var sid_rooms =
 // mapset.
@@ -27,6 +28,7 @@ func AddToRoom(channel *gosocketio.Channel, room string, userName string, fn fun
 	if _, ok := rooms[room]; !ok {
 		rooms[room] = mapset.NewSet()
 	}
+
 	rooms[room].Add(channel)
 	log.Println("added username " + userName)
 
@@ -59,6 +61,22 @@ func AddToRoomAndAnnounce(channel *gosocketio.Channel, room string, userName str
 		}
 	})
 }
+
+// Return list of clients in the given room.
+func RoomClients(room string) []*gosocketio.Channel {
+		if roomSet, ok := rooms[room]; ok {
+			// TODO: Look for a better way to convert a []interface{} to a []string.
+			// TODO: Why doesn't the mapset have a length??
+			roomSetSlice := roomSet.ToSlice()
+			roomList := make([]*gosocketio.Channel, 0, len(roomSetSlice))
+				for _, i := range roomSetSlice {
+				    roomList = append(roomList, i.( *gosocketio.Channel))
+				}
+			return roomList
+		} else {
+			return make([]*gosocketio.Channel, 0)
+		}
+};
 
 /*
 exports.add_to_room_and_announce = function (client, room, msg) {
