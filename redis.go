@@ -74,6 +74,53 @@ func (mydb * DB)CreateCard(room string, id string, card interface{}){
     }
 }
 
+/*
+cardEdit: function(room, id, text) {
+	redisClient.hget(REDIS_PREFIX + '-room:' + room + '-cards', id, function(err, res) {
+		var card = JSON.parse(res);
+		if (card !== null) {
+			card.text = text;
+			redisClient.hset(REDIS_PREFIX + '-room:' + room + '-cards', id, JSON.stringify(card));
+		}
+	});
+},
+*/
+
+func (mydb * DB)CardEdit(room string, id string, text string) {
+	cardJson := mydb.redisClient.HGet(redis_prefix+ "-room:" + room + "-cards", id)
+	var card map[string]interface{}
+	if err := json.Unmarshal([]byte(cardJson), &card); err != nil {
+	panic(err) // TODO: Don't do this
+	} else {
+			card["text"] = text
+
+			if jsonBytes, err := json.Marshal(card); err!=nil {
+					log.Println("Error converting JSON")
+			} else {
+					jsonString := string(jsonBytes[:])
+					mydb.redisClient.HSet(redis_prefix+ "-room:" + room + "-cards", id, jsonString)
+			}
+	}
+}
+
+func (mydb * DB)CardSetXY(room string, id string, x string, y string){
+    cardJson := mydb.redisClient.HGet(redis_prefix+ "-room:" + room + "-cards", id)
+		var card map[string]interface{}
+		if err := json.Unmarshal([]byte(cardJson), &card); err != nil {
+		panic(err) // TODO: Don't do this
+		} else {
+				card["x"] = x
+				card["y"] = y
+		}
+
+    if jsonBytes, err := json.Marshal(card); err!=nil {
+        log.Println("Error converting JSON")
+    } else {
+        jsonString := string(jsonBytes[:])
+        mydb.redisClient.HSet(redis_prefix+ "-room:" + room + "-cards", id, jsonString)
+    }
+}
+
 func (mydb * DB)SetBoardSize(room string, size interface{}){
 	if jsonBytes, err := json.Marshal(size); err!=nil {
 			log.Println("Error converting JSON")

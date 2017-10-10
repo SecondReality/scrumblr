@@ -78,17 +78,65 @@ func RoomClients(room string) []*gosocketio.Channel {
 		}
 };
 
-/*
-exports.add_to_room_and_announce = function (client, room, msg) {
+func BroadcastToRoomates(c *gosocketio.Channel, action string, data interface{}) {
+	// Build the message to deliver:
+	msg := map[string]interface{}{
+			"action": action,
+			"data": data,
+	}
 
-		// Add user info to the current dramatis personae
-		exports.add_to_room(client, room, function(clients) {
-		    // Broadcast new-user notification
-		    for (var i = 0; i < clients.length; i++)
-			{
-				if (clients[i].id != client.id)
-					clients[i].json.send(msg);
+	roommates := mapset.NewSet()
+	if _, ok := sid_rooms[c.Id()]; ok {
+		clientRoomsList := sid_rooms[c.Id()].ToSlice()
+		for _, room := range clientRoomsList {
+			if _, ok := rooms[room.(string)]; ok {
+				thisRoom := rooms[room.(string)].ToSlice()
+				for _, thisParticularRoom := range thisRoom { // This is nasty - cyclomatic complexity is too damn high
+					roommates.Add(thisParticularRoom)
+				}
 			}
-		});
+		}
+	}
+	roommates.Remove(c)
+
+	roommatesArray := roommates.ToSlice()
+	for _, roommate := range roommatesArray {
+		roommate.(*gosocketio.Channel).Emit("message", msg)
+	}
+
+}
+
+/*
+// Broadcast message to all the other clients that are in rooms with this client
+exports.broadcast_to_roommates = function (client, msg) {
+	var roommates = new sets.Set();
+
+   if (sid_rooms.hasOwnProperty(client.id))
+	{
+		var client_rooms = sid_rooms[client.id].array();
+		for (var i = 0; i < client_rooms.length; i++)
+		{
+		   var room = client_rooms[i];
+		   if (rooms.hasOwnProperty(room))
+			{
+				var this_room = rooms[room].array();
+				for (var j = 0; j < this_room.length; j++)
+					roommates.add(this_room[j]);
+		   }
+		}
+	}
+
+	//remove self from the set
+	roommates.remove(client);
+	roommates = roommates.array();
+
+	//console.log('client: ' + client.id + " is broadcasting to: ");
+
+
+   for (var k = 0; k < roommates.length; k++)
+	{
+		//console.log('  - ' + roommates[i].id);
+		roommates[k].json.send(msg);
+	}
 };
 */

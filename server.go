@@ -24,7 +24,17 @@ func echoHandler(ws *websocket.Conn) {
 
 type Message struct {
   Action string `json:"action"`
-  Data string `json:"data"`
+  Data interface{} `json:"data"`
+}
+
+type PositionData struct {
+  Id string `json:"id"`
+  Pos Position `json:"position"`
+}
+
+type Position struct {
+ Top float64 `json:"top"`
+ Left float64  `json:"left"`
 }
 
 type Channel struct {
@@ -41,6 +51,12 @@ type successFunction func()
 func getRoom(c *gosocketio.Channel, callback func(string)){
 	room := RoomsGetRoom(c);
 	callback(room);
+}
+
+// Finish implementation of this (could do bad things without sanitization)
+// (it's a place holder right now)
+func scrub(text string) string {
+  return text
 }
 
 func setUserName(c *gosocketio.Channel, userName string){
@@ -89,10 +105,17 @@ func clientJsonSend(c *gosocketio.Channel, action string, data interface{}) {
     c.Emit("message", msg)
 }
 
+func BroadcastToRoom(c *gosocketio.Channel, action string, data interface{}) {
+  BroadcastToRoomates(c, action, data)
+}
+
+func ToString(val float64) string {
+  return fmt.Sprintf("%f", val)
+}
+
 func main() {
   cleanAndInitializeDemoRoom()
-  //db.CreateCard("/demo", "potato", "cardcontent")
-  //db.GetAllCards("/demo")
+
   server = gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
   if(server!=nil){
     log.Println("Server initialized!")
@@ -113,16 +136,81 @@ func main() {
       switch(msg.Action) {
         case "joinRoom": {
           log.Println("Client Joined Room")
-          joinRoom(c, msg.Data, func(){})
+          joinRoom(c, msg.Data.(string), func(){})
           c.Emit("message", map[string]interface{}{ "action": "roomAccept", "data": "" } );
         }
         case "initializeMe": {
           InitClient(c)
         }
+        // TODO: Any easier way to get members from JSON? Don't do this at home folks. Maybe make a custom type? or the pointers in the struct https://blog.golang.org/json-and-go
+        // BAD:     "top": scrub(msg.Data.(map[string]interface{})["position"].(string)),
       case "moveCard": {
-        
+        positionData := msg.Data.(map[string]interface{})
+        cardID:=positionData["id"].(string)
+        cardLeft:=positionData["position"].(map[string]interface{})["left"].(float64)
+        cardRight:=positionData["position"].(map[string]interface{})["top"].(float64)
+
+        data := map[string]interface{}{
+          "id": scrub(cardID),
+          "position": map[string]interface{}{
+            "left": ToString(cardLeft),
+            "top": ToString(cardRight),
+          },
         }
+        /*
+        positionData := msg.Data.(PositionData)
+        data := map[string]interface{}{
+          "id": scrub(positionData.Id),
+          "position": map[string]interface{}{
+            "left": scrub(ToString(positionData.Pos.Left)),
+            "top": scrub(ToString(positionData.Pos.Top)),
+          },
+        }
+        */
+        BroadcastToRoom(c, "moveCard", data)
+
+        getRoom(c, func(room string){
+          db.CardSetXY(room, cardID, ToString(cardLeft), ToString(cardRight))
+        })
       }
+
+    case "editCard": {
+        data := msg.Data.(map[string]interface{})
+        cardID:=data["id"].(string)
+        cardValue:=data["value"].(string)
+
+      getRoom(c, func(room string){
+        db.CardEdit(room, cardID, cardValue)
+      })
+
+      cleanData := map[string]interface{}{
+        "value": cardValue,
+        "id": cardID,
+      }
+
+      BroadcastToRoom(c, "editCard", cleanData)
+      /*
+        clean_data = {};
+        clean_data.value = scrub(message.data.value);
+        clean_data.id = scrub(message.data.id);
+
+        //send update to database
+        getRoom(client, function(room) {
+          db.cardEdit( room , clean_data.id, clean_data.value );
+        });
+
+        message_out = {
+          action: 'editCard',
+          data: clean_data
+        };
+
+        broadcastToRoom(client, message_out);
+        */
+    }
+
+
+
+    }
 
       /*
       server.BroadcastToAll("my event", "What up")
