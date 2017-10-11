@@ -4,7 +4,7 @@ scrumblr
 important!
 ----------
 
-This is a Go version of the original Javascript/Node project. The original node files are still in the project structure for references purposes. This is a small project to learn more about Go so don't expect great code. A Redis testing framework is currently being used which doesn't support serialization to disk, so data will not be saved between restarts!
+This is a Go version of the original Javascript/Node project. The original node files are still in the project structure for reference purposes. This is a small project to learn more about Go so don't expect great code. A Redis testing framework is currently being used which doesn't support serialization to disk, so data will not be saved between restarts!
 
 what is it
 ----------
@@ -41,7 +41,7 @@ my goal was to avoid buttons and ui (almost everything is edit in place or dragg
 ![Wellca Board](http://scrumblr.ca/images/DSC_7093.jpg)
 
 
-how to install and run on your own computer (linux/osx)
+how to install and run on your own computer
 -------------------------------------------------------
 
 - install all the Go dependencies required (you can install these by running `go get {package name}`)
