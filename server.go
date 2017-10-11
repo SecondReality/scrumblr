@@ -9,6 +9,7 @@ import (
 	"github.com/Joker/jade"
 	"github.com/graarh/golang-socketio"
 	"github.com/graarh/golang-socketio/transport"
+	"encoding/json"
 )
 
 var chttp = http.NewServeMux()
@@ -17,8 +18,23 @@ var userNames = make(map[*gosocketio.Channel]string)
 var db = NewDB()
 
 type Message struct {
-	Action string      `json:"action"`
-	Data   interface{} `json:"data"`
+	Action string          `json:"action"`
+	Data   json.RawMessage `json:"data"`
+}
+
+type MoveCardData struct {
+	Id       string       `json:"id"`
+	Position PositionData `json:"position"`
+}
+
+type PositionData struct {
+	Left float64 `json:"left"`
+	Top  float64 `json:"top"`
+}
+
+type CreateCardData struct {
+	Id string `json:"id"`
+	Value *string `json:"value"`
 }
 
 func getRoom(c *gosocketio.Channel, callback func(string)) {
@@ -83,43 +99,56 @@ func main() {
 		switch msg.Action {
 		case "joinRoom":
 			{
-				joinRoom(c, msg.Data.(string))
+				var room string
+				if err := json.Unmarshal(msg.Data, &room); err != nil {
+					return "OK"
+				}
+
+				joinRoom(c, room)
 				c.Emit("message", map[string]interface{}{"action": "roomAccept", "data": ""})
 			}
 		case "initializeMe":
 			{
 				InitClient(c)
 			}
-			// TODO: Any easier way to get members from JSON? Don't do this at home folks. Maybe make a custom type? or the pointers in the struct https://blog.golang.org/json-and-go
-			// BAD:     "top": scrub(msg.Data.(map[string]interface{})["position"].(string)),
 		case "moveCard":
 			{
-				positionData := msg.Data.(map[string]interface{})
-				cardID := positionData["id"].(string)
-				cardLeft := positionData["position"].(map[string]interface{})["left"].(float64)
-				cardRight := positionData["position"].(map[string]interface{})["top"].(float64)
+				var moveCardData MoveCardData
+				if err := json.Unmarshal(msg.Data, &moveCardData); err != nil {
+					return "OK"
+				}
+
+				cardID := moveCardData.Id
+				cardLeft := moveCardData.Position.Left
+				cardTop := moveCardData.Position.Top
 
 				data := map[string]interface{}{
 					"id": scrub(cardID),
 					"position": map[string]interface{}{
 						"left": ToString(cardLeft),
-						"top":  ToString(cardRight),
+						"top":  ToString(cardTop),
 					},
 				}
 
 				BroadcastToRoom(c, "moveCard", data)
 
 				getRoom(c, func(room string) {
-					db.CardSetXY(room, cardID, ToString(cardLeft), ToString(cardRight))
+					db.CardSetXY(room, cardID, ToString(cardLeft), ToString(cardTop))
 				})
+
 			}
 
 		case "createCard":
 			{
+				var data map[string]interface{}
+				if err := json.Unmarshal(msg.Data, &data); err != nil {
+					return "OK"
+				}
+
 				// TODO scrub/sanitize the card before sending, I'm lazy.
 				// TODO: the non db create card function should be used
-				data := msg.Data.(map[string]interface{})
 				cardID := data["id"].(string)
+
 				getRoom(c, func(room string) {
 					db.CreateCard(room, cardID, data)
 				})
@@ -127,9 +156,13 @@ func main() {
 			}
 		case "editCard":
 			{
-				data := msg.Data.(map[string]interface{})
-				cardID := data["id"].(string)
-				cardValue := data["value"].(string)
+				var createCardData CreateCardData
+				if err := json.Unmarshal(msg.Data, &createCardData); err != nil {
+					return "OK"
+				}
+
+				cardID := createCardData.Id
+				cardValue := *createCardData.Value
 
 				getRoom(c, func(room string) {
 					db.CardEdit(room, cardID, cardValue)
