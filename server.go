@@ -76,14 +76,9 @@ func main() {
 		log.Println("Server initialized!")
 	}
 
-	server.On(gosocketio.OnConnection, func(c *gosocketio.Channel) {
-		log.Println("New client connected")
-	})
-
 	// Handle messages from the client:
 	server.On("message", func(c *gosocketio.Channel, msg Message) string {
 
-		log.Println(msg.Action)
 		if msg.Action == "" {
 			return "OK"
 		}
@@ -91,7 +86,6 @@ func main() {
 		switch msg.Action {
 		case "joinRoom":
 			{
-				log.Println("Client Joined Room")
 				joinRoom(c, msg.Data.(string))
 				c.Emit("message", map[string]interface{}{"action": "roomAccept", "data": ""})
 			}
@@ -154,10 +148,6 @@ func main() {
 
 		}
 		return "OK"
-	})
-
-	server.On(gosocketio.OnDisconnection, func(c *gosocketio.Channel) {
-		log.Println("Disconnected")
 	})
 
 	chttp.Handle("/", http.FileServer(http.Dir("./client")))
@@ -290,7 +280,6 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/socket.io/") {
 			server.ServeHTTP(w, r)
 		} else {
-			log.Printf("Serving a file")
 			chttp.ServeHTTP(w, r)
 		}
 	} else {
