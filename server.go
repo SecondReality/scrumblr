@@ -32,15 +32,11 @@ func scrub(text string) string {
 	return text
 }
 
-func setUserName(c *gosocketio.Channel, userName string) {
-	userNames[c] = userName
-}
-
-func joinRoom(c *gosocketio.Channel, room string, fn func()) {
+func joinRoom(c *gosocketio.Channel, room string) {
 
 	_, ok := userNames[c]
 	if !ok {
-		// <SMR> Since users join rooms before they set their name, set their name here if it wasn't previously set (javascript relies on string conversion to 'undefined')
+		//  Since users join rooms before they set their name, set their name here if it wasn't previously set (javascript relies on string conversion to 'undefined')
 		userNames[c] = "undefined"
 	}
 
@@ -92,11 +88,11 @@ func main() {
 			return "OK"
 		}
 
-		switchmsg.Action {
+		switch msg.Action {
 		case "joinRoom":
 			{
 				log.Println("Client Joined Room")
-				joinRoom(c, msg.Data.(string), func() {})
+				joinRoom(c, msg.Data.(string))
 				c.Emit("message", map[string]interface{}{"action": "roomAccept", "data": ""})
 			}
 		case "initializeMe":
@@ -119,16 +115,7 @@ func main() {
 						"top":  ToString(cardRight),
 					},
 				}
-				/*
-				positionData := msg.Data.(PositionData)
-				data := map[string]interface{}{
-				  "id": scrub(positionData.Id),
-				  "position": map[string]interface{}{
-					"left": scrub(ToString(positionData.Pos.Left)),
-					"top": scrub(ToString(positionData.Pos.Top)),
-				  },
-				}
-				*/
+
 				BroadcastToRoom(c, "moveCard", data)
 
 				getRoom(c, func(room string) {
@@ -236,12 +223,13 @@ func cleanAndInitializeDemoRoom() {
 }
 
 //-------------------------------------------------------------
+
 type TemplateData struct {
 	Connected string
 	Url       string
 }
 
-func HomePage(w http.ResponseWriter, r *http.Request) {
+func HomePage(w http.ResponseWriter, _ *http.Request) {
 
 	layout, err := jade.ParseFile("views/home.jade")
 	if err != nil {
@@ -263,7 +251,7 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func ScrumblrPage(w http.ResponseWriter, r *http.Request) {
+func ScrumblrPage(w http.ResponseWriter, _ *http.Request) {
 
 	layout, err := jade.ParseFile("views/layout.jade")
 	if err != nil {
@@ -276,15 +264,15 @@ func ScrumblrPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	temple := template.New("layout")
-	go_tpl, err := temple.Parse(layout)
+	goTpl, err := temple.Parse(layout)
 
 	if err != nil {
 
 		log.Printf("\nTemplate parse error: %v", err)
 	}
-	go_tpl.New("index").Parse(index)
+	goTpl.New("index").Parse(index)
 
-	err = go_tpl.Execute(w, "")
+	err = goTpl.Execute(w, "")
 	if err != nil {
 		log.Printf("\nExecute error: %v", err)
 	}
