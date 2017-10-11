@@ -1,27 +1,27 @@
 package main
 
 import (
-    "html/template"
-    "log"
-    "fmt"
-    "net/http"
-    "strings"
-    "github.com/Joker/jade"
-    "github.com/graarh/golang-socketio"
-    "github.com/graarh/golang-socketio/transport"
+	"html/template"
+	"log"
+	"fmt"
+	"net/http"
+	"strings"
+	"github.com/Joker/jade"
+	"github.com/graarh/golang-socketio"
+	"github.com/graarh/golang-socketio/transport"
 )
 
 var chttp = http.NewServeMux()
-var server * gosocketio.Server
+var server *gosocketio.Server
 var userNames = make(map[*gosocketio.Channel]string)
 var db = NewDB()
 
 type Message struct {
-  Action string `json:"action"`
-  Data interface{} `json:"data"`
+	Action string      `json:"action"`
+	Data   interface{} `json:"data"`
 }
 
-func getRoom(c *gosocketio.Channel, callback func(string)){
+func getRoom(c *gosocketio.Channel, callback func(string)) {
 	room := RoomsGetRoom(c);
 	callback(room);
 }
@@ -29,231 +29,233 @@ func getRoom(c *gosocketio.Channel, callback func(string)){
 // Finish implementation of this (could do bad things without sanitization)
 // (it's a place holder right now)
 func scrub(text string) string {
-  return text
+	return text
 }
 
-func setUserName(c *gosocketio.Channel, userName string){
-    userNames[c]=userName
+func setUserName(c *gosocketio.Channel, userName string) {
+	userNames[c] = userName
 }
 
 func joinRoom(c *gosocketio.Channel, room string, fn func()) {
 
-    _, ok := userNames[c]
-    if(!ok){
-    // <SMR> Since users join rooms before they set their name, set their name here if it wasn't previously set (javascript relies on string conversion to 'undefined')
-    userNames[c]="undefined"
-     }
+	_, ok := userNames[c]
+	if (!ok) {
+		// <SMR> Since users join rooms before they set their name, set their name here if it wasn't previously set (javascript relies on string conversion to 'undefined')
+		userNames[c] = "undefined"
+	}
 
-  msg := map[string]interface{}{
-      "action": "join-announce",
-      "data": map[string]interface{}{
-          "sid": "1",
-          "user_name": userNames[c],
-      },
-  }
+	msg := map[string]interface{}{
+		"action": "join-announce",
+		"data": map[string]interface{}{
+			"sid":       "1",
+			"user_name": userNames[c],
+		},
+	}
 
 	AddToRoomAndAnnounce(c, room, userNames[c], msg);
 }
 
 // Not in original code base.
 func clientJsonSend(c *gosocketio.Channel, action string, data interface{}) {
-    msg := map[string]interface{}{
-        "action": action,
-        "data": data,
-    }
-    c.Emit("message", msg)
+	msg := map[string]interface{}{
+		"action": action,
+		"data":   data,
+	}
+	c.Emit("message", msg)
 }
 
 func BroadcastToRoom(c *gosocketio.Channel, action string, data interface{}) {
-  BroadcastToRoomates(c, action, data)
+	BroadcastToRoomates(c, action, data)
 }
 
 func ToString(val float64) string {
-  return fmt.Sprintf("%f", val)
+	return fmt.Sprintf("%f", val)
 }
 
 func main() {
-  cleanAndInitializeDemoRoom()
+	cleanAndInitializeDemoRoom()
 
-  server = gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
-  if(server!=nil){
-    log.Println("Server initialized!")
-  }
+	server = gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
+	if (server != nil) {
+		log.Println("Server initialized!")
+	}
 
-  server.On(gosocketio.OnConnection, func(c *gosocketio.Channel) {
-  		log.Println("New client connected")
-  	})
+	server.On(gosocketio.OnConnection, func(c *gosocketio.Channel) {
+		log.Println("New client connected")
+	})
 
-    // Handle messages from the client:
-  	server.On("message", func(c *gosocketio.Channel, msg Message) string {
+	// Handle messages from the client:
+	server.On("message", func(c *gosocketio.Channel, msg Message) string {
 
-      log.Println(msg.Action)
-      if(msg.Action==""){
-        return "OK"
-      }
+		log.Println(msg.Action)
+		if (msg.Action == "") {
+			return "OK"
+		}
 
-      switch(msg.Action) {
-        case "joinRoom": {
-          log.Println("Client Joined Room")
-          joinRoom(c, msg.Data.(string), func(){})
-          c.Emit("message", map[string]interface{}{ "action": "roomAccept", "data": "" } );
-        }
-        case "initializeMe": {
-          InitClient(c)
-        }
-        // TODO: Any easier way to get members from JSON? Don't do this at home folks. Maybe make a custom type? or the pointers in the struct https://blog.golang.org/json-and-go
-        // BAD:     "top": scrub(msg.Data.(map[string]interface{})["position"].(string)),
-      case "moveCard": {
-        positionData := msg.Data.(map[string]interface{})
-        cardID:=positionData["id"].(string)
-        cardLeft:=positionData["position"].(map[string]interface{})["left"].(float64)
-        cardRight:=positionData["position"].(map[string]interface{})["top"].(float64)
+		switch(msg.Action) {
+		case "joinRoom":
+			{
+				log.Println("Client Joined Room")
+				joinRoom(c, msg.Data.(string), func() {})
+				c.Emit("message", map[string]interface{}{"action": "roomAccept", "data": ""});
+			}
+		case "initializeMe":
+			{
+				InitClient(c)
+			}
+			// TODO: Any easier way to get members from JSON? Don't do this at home folks. Maybe make a custom type? or the pointers in the struct https://blog.golang.org/json-and-go
+			// BAD:     "top": scrub(msg.Data.(map[string]interface{})["position"].(string)),
+		case "moveCard":
+			{
+				positionData := msg.Data.(map[string]interface{})
+				cardID := positionData["id"].(string)
+				cardLeft := positionData["position"].(map[string]interface{})["left"].(float64)
+				cardRight := positionData["position"].(map[string]interface{})["top"].(float64)
 
-        data := map[string]interface{}{
-          "id": scrub(cardID),
-          "position": map[string]interface{}{
-            "left": ToString(cardLeft),
-            "top": ToString(cardRight),
-          },
-        }
-        /*
-        positionData := msg.Data.(PositionData)
-        data := map[string]interface{}{
-          "id": scrub(positionData.Id),
-          "position": map[string]interface{}{
-            "left": scrub(ToString(positionData.Pos.Left)),
-            "top": scrub(ToString(positionData.Pos.Top)),
-          },
-        }
-        */
-        BroadcastToRoom(c, "moveCard", data)
+				data := map[string]interface{}{
+					"id": scrub(cardID),
+					"position": map[string]interface{}{
+						"left": ToString(cardLeft),
+						"top":  ToString(cardRight),
+					},
+				}
+				/*
+				positionData := msg.Data.(PositionData)
+				data := map[string]interface{}{
+				  "id": scrub(positionData.Id),
+				  "position": map[string]interface{}{
+					"left": scrub(ToString(positionData.Pos.Left)),
+					"top": scrub(ToString(positionData.Pos.Top)),
+				  },
+				}
+				*/
+				BroadcastToRoom(c, "moveCard", data)
 
-        getRoom(c, func(room string){
-          db.CardSetXY(room, cardID, ToString(cardLeft), ToString(cardRight))
-        })
-      }
+				getRoom(c, func(room string) {
+					db.CardSetXY(room, cardID, ToString(cardLeft), ToString(cardRight))
+				})
+			}
 
-    case "createCard": {
-        // TODO scrub/sanitize the card before sending, I'm lazy.
-        // TODO: the non db create card function should be used
-        data := msg.Data.(map[string]interface{})
-        cardID:=data["id"].(string)
-         getRoom(c, func(room string){
-             db.CreateCard(room, cardID, data)
-        })
-        BroadcastToRoom(c, "createCard", data)
-    }
-    case "editCard": {
-        data := msg.Data.(map[string]interface{})
-        cardID:=data["id"].(string)
-        cardValue:=data["value"].(string)
+		case "createCard":
+			{
+				// TODO scrub/sanitize the card before sending, I'm lazy.
+				// TODO: the non db create card function should be used
+				data := msg.Data.(map[string]interface{})
+				cardID := data["id"].(string)
+				getRoom(c, func(room string) {
+					db.CreateCard(room, cardID, data)
+				})
+				BroadcastToRoom(c, "createCard", data)
+			}
+		case "editCard":
+			{
+				data := msg.Data.(map[string]interface{})
+				cardID := data["id"].(string)
+				cardValue := data["value"].(string)
 
-      getRoom(c, func(room string){
-        db.CardEdit(room, cardID, cardValue)
-      })
+				getRoom(c, func(room string) {
+					db.CardEdit(room, cardID, cardValue)
+				})
 
-      cleanData := map[string]interface{}{
-        "value": cardValue,
-        "id": cardID,
-      }
+				cleanData := map[string]interface{}{
+					"value": cardValue,
+					"id":    cardID,
+				}
 
-      BroadcastToRoom(c, "editCard", cleanData)
-    }
+				BroadcastToRoom(c, "editCard", cleanData)
+			}
 
+		}
+		return "OK"
+	})
 
+	server.On(gosocketio.OnDisconnection, func(c *gosocketio.Channel) {
+		log.Println("Disconnected")
+	})
 
-    }
-  		return "OK"
-  	})
+	chttp.Handle("/", http.FileServer(http.Dir("./client")))
 
-    server.On(gosocketio.OnDisconnection, func(c *gosocketio.Channel) {
-    		log.Println("Disconnected")
-    	})
-
-    chttp.Handle("/", http.FileServer(http.Dir("./client")))
-
-    http.HandleFunc("/", HomeHandler)
-    http.ListenAndServe(":8080", nil)
+	http.HandleFunc("/", HomeHandler)
+	http.ListenAndServe(":8080", nil)
 }
 
-func InitClient(c *gosocketio.Channel){
-    onGetRoom := func(room string) {
+func InitClient(c *gosocketio.Channel) {
+	onGetRoom := func(room string) {
 
-        clientJsonSend(c, "initCards", db.GetAllCards(room))
-        clientJsonSend(c, "initColumns", db.GetAllColumns(room))
-        theme := db.GetTheme(room)
-        // TODO: Verify if theme can be empty
-        if theme=="" {
-          theme = "bigcards"
-        }
-        clientJsonSend(c, "changeTheme", theme)
+		clientJsonSend(c, "initCards", db.GetAllCards(room))
+		clientJsonSend(c, "initColumns", db.GetAllColumns(room))
+		theme := db.GetTheme(room)
+		// TODO: Verify if theme can be empty
+		if theme == "" {
+			theme = "bigcards"
+		}
+		clientJsonSend(c, "changeTheme", theme)
 
-        // TODO: Verify if size can actually be nil
-        if size := db.GetBoardSize(room); size!=nil {
-          clientJsonSend(c, "setBoardSize", size)
-        }
+		// TODO: Verify if size can actually be nil
+		if size := db.GetBoardSize(room); size != nil {
+			clientJsonSend(c, "setBoardSize", size)
+		}
 
-        roomMatesClients := RoomClients(room)
-        var roomMates = make([]map[string]interface{}, 0, 0)
-        for _, roomMateClient := range roomMatesClients {
-          if(roomMateClient.Id() != c.Id()){
-            newRoomMate := map[string]interface{}{
-                "sid": roomMateClient.Id(),
-                // This line is sketchy
-                "user_name": userNames[roomMateClient],
-              }
-            roomMates = append(roomMates, newRoomMate)
-          }
-        }
+		roomMatesClients := RoomClients(room)
+		var roomMates = make([]map[string]interface{}, 0, 0)
+		for _, roomMateClient := range roomMatesClients {
+			if (roomMateClient.Id() != c.Id()) {
+				newRoomMate := map[string]interface{}{
+					"sid": roomMateClient.Id(),
+					// This line is sketchy
+					"user_name": userNames[roomMateClient],
+				}
+				roomMates = append(roomMates, newRoomMate)
+			}
+		}
 
-        clientJsonSend(c, "initialUsers", roomMates)
+		clientJsonSend(c, "initialUsers", roomMates)
 
-        }
-    getRoom(c, onGetRoom)
+	}
+	getRoom(c, onGetRoom)
 }
-
 
 func createCard(room string, id string, text string, x float64, y float64, rot float64, colour string) {
-    card := map[string]interface{}{
-        "id": id,
-        "colour": colour,
-        "rot": rot,
-        "x": x,
-        "y": y,
-        "text": text,
-        "sticker": nil,
+	card := map[string]interface{}{
+		"id":      id,
+		"colour":  colour,
+		"rot":     rot,
+		"x":       x,
+		"y":       y,
+		"text":    text,
+		"sticker": nil,
 	};
-
 	db.CreateCard(room, id, card);
 }
 
-func cleanAndInitializeDemoRoom(){
-    db.CreateColumn("/demo", "Started" )
-    db.CreateColumn("/demo", "In Progress" )
-    db.CreateColumn("/demo", "Finished" )
-    createCard("/demo", "card1", "Hello this is fun", 300, 150, 0.5 * 10 - 5, "yellow");
-}
-//-------------------------------------------------------------
-type TemplateData struct {
-    Connected string
-    Url string
+func cleanAndInitializeDemoRoom() {
+	db.CreateColumn("/demo", "Started")
+	db.CreateColumn("/demo", "In Progress")
+	db.CreateColumn("/demo", "Finished")
+	createCard("/demo", "card1", "Hello this is fun", 300, 150, 0.5*10-5, "yellow");
 }
 
-func HomePage(w http.ResponseWriter, r *http.Request){
+//-------------------------------------------------------------
+type TemplateData struct {
+	Connected string
+	Url       string
+}
+
+func HomePage(w http.ResponseWriter, r *http.Request) {
 
 	layout, err := jade.ParseFile("views/home.jade")
 	if err != nil {
 		log.Printf("\nParseFile error: %v", err)
 	}
 
-  // Insert template variables:
-  goTpl, err := template.New("html").Parse(layout)
-  if err != nil {
-    fmt.Printf("\nTemplate parse error: %v", err)
-  }
+	// Insert template variables:
+	goTpl, err := template.New("html").Parse(layout)
+	if err != nil {
+		fmt.Printf("\nTemplate parse error: %v", err)
+	}
 
-  p := TemplateData{Connected: "123", Url: "whatup"}
-  err = goTpl.Execute(w, p)
+	p := TemplateData{Connected: "123", Url: "whatup"}
+	err = goTpl.Execute(w, p)
 	if err != nil {
 		fmt.Printf("\nExecute error: %v", err)
 		return
@@ -261,9 +263,9 @@ func HomePage(w http.ResponseWriter, r *http.Request){
 
 }
 
-func ScrumblrPage(w http.ResponseWriter, r *http.Request){
+func ScrumblrPage(w http.ResponseWriter, r *http.Request) {
 
-  layout, err := jade.ParseFile("views/layout.jade")
+	layout, err := jade.ParseFile("views/layout.jade")
 	if err != nil {
 		log.Printf("\nParseFile error: %v", err)
 	}
@@ -273,41 +275,41 @@ func ScrumblrPage(w http.ResponseWriter, r *http.Request){
 		log.Printf("\nParseFile error: %v", err)
 	}
 
-  temple := template.New("layout")
-  go_tpl, err := temple.Parse(layout)
+	temple := template.New("layout")
+	go_tpl, err := temple.Parse(layout)
 
-  	if err != nil {
+	if err != nil {
 
-  		log.Printf("\nTemplate parse error: %v", err)
-  	}
-    go_tpl.New("index").Parse(index)
+		log.Printf("\nTemplate parse error: %v", err)
+	}
+	go_tpl.New("index").Parse(index)
 
-  	err = go_tpl.Execute(w, "")
-  	if err != nil {
-  		log.Printf("\nExecute error: %v", err)
-  	}
+	err = go_tpl.Execute(w, "")
+	if err != nil {
+		log.Printf("\nExecute error: %v", err)
+	}
 
 }
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
-    if (strings.Contains(r.URL.Path, ".")) {
+	if (strings.Contains(r.URL.Path, ".")) {
 
-      if(r.URL.Path=="/socket.io/socket.io.js") {
-        chttp.ServeHTTP(w, r)
-      } else
+		if (r.URL.Path == "/socket.io/socket.io.js") {
+			chttp.ServeHTTP(w, r)
+		} else
 
-      if (strings.Contains(r.URL.Path, "/socket.io/")) {
-        server.ServeHTTP(w, r)
-      } else {
-        log.Printf("Serving a file")
-        chttp.ServeHTTP(w, r)
-      }
-    } else {
-        if r.URL.Path=="/" {
-          HomePage(w, r)
-        } else {
-          ScrumblrPage(w, r)
-        }
-    }
+		if (strings.Contains(r.URL.Path, "/socket.io/")) {
+			server.ServeHTTP(w, r)
+		} else {
+			log.Printf("Serving a file")
+			chttp.ServeHTTP(w, r)
+		}
+	} else {
+		if r.URL.Path == "/" {
+			HomePage(w, r)
+		} else {
+			ScrumblrPage(w, r)
+		}
+	}
 }
