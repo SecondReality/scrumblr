@@ -22,8 +22,8 @@ type Message struct {
 }
 
 func getRoom(c *gosocketio.Channel, callback func(string)) {
-	room := RoomsGetRoom(c);
-	callback(room);
+	room := RoomsGetRoom(c)
+	callback(room)
 }
 
 // Finish implementation of this (could do bad things without sanitization)
@@ -39,7 +39,7 @@ func setUserName(c *gosocketio.Channel, userName string) {
 func joinRoom(c *gosocketio.Channel, room string, fn func()) {
 
 	_, ok := userNames[c]
-	if (!ok) {
+	if !ok {
 		// <SMR> Since users join rooms before they set their name, set their name here if it wasn't previously set (javascript relies on string conversion to 'undefined')
 		userNames[c] = "undefined"
 	}
@@ -52,7 +52,7 @@ func joinRoom(c *gosocketio.Channel, room string, fn func()) {
 		},
 	}
 
-	AddToRoomAndAnnounce(c, room, userNames[c], msg);
+	AddToRoomAndAnnounce(c, room, userNames[c], msg)
 }
 
 // Not in original code base.
@@ -76,7 +76,7 @@ func main() {
 	cleanAndInitializeDemoRoom()
 
 	server = gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
-	if (server != nil) {
+	if server != nil {
 		log.Println("Server initialized!")
 	}
 
@@ -88,16 +88,16 @@ func main() {
 	server.On("message", func(c *gosocketio.Channel, msg Message) string {
 
 		log.Println(msg.Action)
-		if (msg.Action == "") {
+		if msg.Action == "" {
 			return "OK"
 		}
 
-		switch(msg.Action) {
+		switchmsg.Action {
 		case "joinRoom":
 			{
 				log.Println("Client Joined Room")
 				joinRoom(c, msg.Data.(string), func() {})
-				c.Emit("message", map[string]interface{}{"action": "roomAccept", "data": ""});
+				c.Emit("message", map[string]interface{}{"action": "roomAccept", "data": ""})
 			}
 		case "initializeMe":
 			{
@@ -199,7 +199,7 @@ func InitClient(c *gosocketio.Channel) {
 		roomMatesClients := RoomClients(room)
 		var roomMates = make([]map[string]interface{}, 0, 0)
 		for _, roomMateClient := range roomMatesClients {
-			if (roomMateClient.Id() != c.Id()) {
+			if roomMateClient.Id() != c.Id() {
 				newRoomMate := map[string]interface{}{
 					"sid": roomMateClient.Id(),
 					// This line is sketchy
@@ -224,15 +224,15 @@ func createCard(room string, id string, text string, x float64, y float64, rot f
 		"y":       y,
 		"text":    text,
 		"sticker": nil,
-	};
-	db.CreateCard(room, id, card);
+	}
+	db.CreateCard(room, id, card)
 }
 
 func cleanAndInitializeDemoRoom() {
 	db.CreateColumn("/demo", "Started")
 	db.CreateColumn("/demo", "In Progress")
 	db.CreateColumn("/demo", "Finished")
-	createCard("/demo", "card1", "Hello this is fun", 300, 150, 0.5*10-5, "yellow");
+	createCard("/demo", "card1", "Hello this is fun", 300, 150, 0.5*10-5, "yellow")
 }
 
 //-------------------------------------------------------------
@@ -293,13 +293,13 @@ func ScrumblrPage(w http.ResponseWriter, r *http.Request) {
 
 func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
-	if (strings.Contains(r.URL.Path, ".")) {
+	if strings.Contains(r.URL.Path, ".") {
 
-		if (r.URL.Path == "/socket.io/socket.io.js") {
+		if r.URL.Path == "/socket.io/socket.io.js" {
 			chttp.ServeHTTP(w, r)
 		} else
 
-		if (strings.Contains(r.URL.Path, "/socket.io/")) {
+		if strings.Contains(r.URL.Path, "/socket.io/") {
 			server.ServeHTTP(w, r)
 		} else {
 			log.Printf("Serving a file")
