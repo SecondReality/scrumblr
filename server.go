@@ -72,9 +72,6 @@ func main() {
 	cleanAndInitializeDemoRoom()
 
 	server = gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
-	if server != nil {
-		log.Println("Server initialized!")
-	}
 
 	// Handle messages from the client:
 	server.On("message", func(c *gosocketio.Channel, msg Message) string {
