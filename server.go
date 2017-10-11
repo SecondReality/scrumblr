@@ -7,8 +7,6 @@ import (
     "net/http"
     "strings"
     "github.com/Joker/jade"
-    "golang.org/x/net/websocket"
-    "io"
     "github.com/graarh/golang-socketio"
     "github.com/graarh/golang-socketio/transport"
 )
@@ -18,35 +16,10 @@ var server * gosocketio.Server
 var userNames = make(map[*gosocketio.Channel]string)
 var db = NewDB()
 
-func echoHandler(ws *websocket.Conn) {
-	io.Copy(ws, ws)
-}
-
 type Message struct {
   Action string `json:"action"`
   Data interface{} `json:"data"`
 }
-
-type PositionData struct {
-  Id string `json:"id"`
-  Pos Position `json:"position"`
-}
-
-type Position struct {
- Top float64 `json:"top"`
- Left float64  `json:"left"`
-}
-
-type Channel struct {
-	Channel string `json:"channel"`
-}
-
-// This doesn"t exist in the original source - had to make this type in order to extend with username
-type Client struct {
-
-}
-
-type successFunction func()
 
 func getRoom(c *gosocketio.Channel, callback func(string)){
 	room := RoomsGetRoom(c);
@@ -63,7 +36,7 @@ func setUserName(c *gosocketio.Channel, userName string){
     userNames[c]=userName
 }
 
-func joinRoom(c *gosocketio.Channel, room string, fn successFunction) {
+func joinRoom(c *gosocketio.Channel, room string, fn func()) {
 
     _, ok := userNames[c]
     if(!ok){
@@ -79,20 +52,6 @@ func joinRoom(c *gosocketio.Channel, room string, fn successFunction) {
       },
   }
 
-/*
-  jsonBytes, err := json.Marshal(msg)
-  if(err !=nil){
-  fmt.Println(err)
-  }
-  jsonString := string(jsonBytes[:])
-  */
-/*
-  msg := &Message{
-          Action:   "join-announce",
-          Data: []string{"apple", "peach", "pear"}}
-	msg.action = "";
-	msg.data		= { sid: client.id, user_name: client.user_name }
-*/
 	AddToRoomAndAnnounce(c, room, userNames[c], msg);
 }
 
@@ -174,6 +133,16 @@ func main() {
         })
       }
 
+    case "createCard": {
+        // TODO scrub/sanitize the card before sending, I'm lazy.
+        // TODO: the non db create card function should be used
+        data := msg.Data.(map[string]interface{})
+        cardID:=data["id"].(string)
+         getRoom(c, func(room string){
+             db.CreateCard(room, cardID, data)
+        })
+        BroadcastToRoom(c, "createCard", data)
+    }
     case "editCard": {
         data := msg.Data.(map[string]interface{})
         cardID:=data["id"].(string)
@@ -189,62 +158,14 @@ func main() {
       }
 
       BroadcastToRoom(c, "editCard", cleanData)
-      /*
-        clean_data = {};
-        clean_data.value = scrub(message.data.value);
-        clean_data.id = scrub(message.data.id);
-
-        //send update to database
-        getRoom(client, function(room) {
-          db.cardEdit( room , clean_data.id, clean_data.value );
-        });
-
-        message_out = {
-          action: 'editCard',
-          data: clean_data
-        };
-
-        broadcastToRoom(client, message_out);
-        */
     }
 
 
 
     }
-
-      /*
-      server.BroadcastToAll("my event", "What up")
-      log.Println("CHANNEL IS " + c.Id())
-      c.Emit("will this work?", "blah")
-  		c.BroadcastTo(c.Id(), "message", "just testing")
-      */
   		return "OK"
   	})
 
-/*
-message_out = {
-  action: message.action,
-  data: {
-    id: scrub(message.data.id),
-    position: {
-      left: scrub(message.data.position.left),
-      top: scrub(message.data.position.top)
-    }
-  }
-};
-
-
-broadcastToRoom( client, message_out );
-
-// console.log("-----" + message.data.id);
-// console.log(JSON.stringify(message.data));
-
-getRoom(client, function(room) {
-  db.cardSetXY( room , message.data.id, message.data.position.left, message.data.position.top);
-});
-
-break;
-*/
     server.On(gosocketio.OnDisconnection, func(c *gosocketio.Channel) {
     		log.Println("Disconnected")
     	})
@@ -308,6 +229,8 @@ func createCard(room string, id string, text string, x float64, y float64, rot f
 
 func cleanAndInitializeDemoRoom(){
     db.CreateColumn("/demo", "Started" )
+    db.CreateColumn("/demo", "In Progress" )
+    db.CreateColumn("/demo", "Finished" )
     createCard("/demo", "card1", "Hello this is fun", 300, 150, 0.5 * 10 - 5, "yellow");
 }
 //-------------------------------------------------------------
