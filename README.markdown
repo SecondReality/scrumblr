@@ -1,6 +1,11 @@
 scrumblr
 ========
 
+important!
+----------
+
+This is a Go version of the original Javascript/Node project. The original node files are still in the project structure for references purposes. This is a small project to learn more about Go so don't expect great code. A Redis testing framework is currently being used which doesn't support serialization to disk, so data will not be saved between restarts!
+
 what is it
 ----------
 [scrumblr](http://scrumblr.ca) is a web-based simulation of a physical agile kanban board that supports real-time collaboration. it is built using node.js, websockets (using socket.io), CSS3, and jquery. i hope you like it.
@@ -39,14 +44,9 @@ my goal was to avoid buttons and ui (almost everything is edit in place or dragg
 how to install and run on your own computer (linux/osx)
 -------------------------------------------------------
 
-- [install redis](http://redis.io/download) (last tested on v2.8.4)
-- [install node.js](http://nodejs.org/) (last tested on v0.10.30)
-- install npm (if you're running node.js [v0.6.3](https://github.com/joyent/node/commit/b159c6) or newer it's already installed!)
-- cd to the scrumblr directory; you should see server.js and config.js and other files.
-- run `npm install`
-- run redis `redis-server`
-- run scrumblr `node server.js --port 80` where "80" is the port you have opened in your firewall and want scrumblr to run on. 
-- open a browser to `http://<server>:<port>` where `<server>` is your server's url or IP address, and `<port>` is the port you chose in the previous step.
+- install all the Go dependencies required (you can install these by running `go get {package name}`)
+- open a terminal in the project folder and enter `go run *.go`, if you're on windows try `go build -o scrumblr.exe && scrumblr.exe` - this way you won't need to confirm firewall access on every launch.
+- open a browser to `http://<server>:8080` where `<server>` is your server's url or IP address.
 
 license
 -------
@@ -67,7 +67,8 @@ the *images* used in scrumblr, however are licensed under cc non commercial node
 
 <a rel="license" href="http://creativecommons.org/licenses/by-nc-nd/3.0/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-nc-nd/3.0/80x15.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-nd/3.0/">Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License</a>.
 
-author
+authors
 ------
 
-ali asaria
+* ali asaria
+* steven rose
