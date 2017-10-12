@@ -6,6 +6,17 @@ important!
 
 This is a Go version of the original Javascript/Node project. The original node files are still in the project structure for reference purposes. This is a small project to learn more about Go so don't expect great code. A Redis testing framework is currently being used which doesn't support serialization to disk, so data will not be saved between restarts!
 
+current state of go conversion
+----------
+It supports creating cards, moving cards, editing card content.
+
+It doesn't support:
+
+* Editing columns
+* Adding stickers
+* Usernames
+* Persisting room data
+
 what is it
 ----------
 [scrumblr](http://scrumblr.ca) is a web-based simulation of a physical agile kanban board that supports real-time collaboration. it is built using node.js, websockets (using socket.io), CSS3, and jquery. i hope you like it.
